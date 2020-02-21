@@ -1,18 +1,29 @@
 FROM ubuntu:18.04
 
-# RUN apt-get update && \
-#     apt-get install -y software-properties-common && \
-#     add-apt-repository ppa:ubuntu-toolchain-r/test && \
-#     apt-get install -y git g++-9 cmake make libboost-all-dev libcpprest-dev && \
-#     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 --slave /usr/bin/gcov gcov /usr/bin/gcov-9
-
-RUN apt-get update && apt-get install -y g++ cmake git libboost-atomic-dev libboost-thread-dev libboost-system-dev libboost-date-time-dev libboost-regex-dev libboost-filesystem-dev libboost-random-dev libboost-chrono-dev libboost-serialization-dev libwebsocketpp-dev openssl libssl-dev ninja-build
-RUN git clone https://github.com/Microsoft/cpprestsdk.git casablanca
+RUN apt-get update && apt-get install -y \
+    g++-9 cmake git \
+    libboost-atomic-dev libboost-thread-dev libboost-system-dev \
+    libboost-date-time-dev libboost-regex-dev libboost-filesystem-dev \
+    libboost-random-dev libboost-chrono-dev libboost-serialization-dev \
+    libwebsocketpp-dev openssl libssl-dev ninja-build
+RUN git clone https://github.com/Microsoft/cpprestsdk.git --branch v2.10.14 casablanca
 WORKDIR casablanca
-RUN mkdir build.debug
-WORKDIR build.debug
-RUN cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Debug
-RUN ninja
+RUN mkdir build.release
+WORKDIR build.release
+RUN cmake -G Ninja .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+    -DOPENSSL_USE_STATIC_LIBS=TRUE \
+    -DBUILD_SHARED_LIBS=0 \
+    -DBUILD_SAMPLES=OFF \
+    -DBUILD_TESTS=OFF \
+    && ninja
 
-WORKDIR /casablanca/Release/Binaries
-CMD ["./test_runner", "*_test.so"]
+ENV LIBCPPREST_PATH="/build"
+ENV LIBCPPREST_BINARY_PATH="/casablanca/build.release/Release/Binaries/libcpprest.a"
+ENV LIBCPPREST_INCLUDE_PATH="/casablanca/Release/include"
+
+# RUN mkdir -p "${LIBCPPREST_PATH}" && \
+#     mv "/casablanca/build.release/Release/Binaries/libcpprest.a" "${LIBCPPREST_BINARY_PATH}" && \
+#     mv "/casablanca/Release/include" "${LIBCPPREST_INCLUDE_PATH}" && \
+#     rm -rf casablanca
